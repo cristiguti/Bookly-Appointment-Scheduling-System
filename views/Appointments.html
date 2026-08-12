@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - My Appointments</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="logo">Bookly</a>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/providers.html">Find a Provider</a>
+      <a href="/Appointments.html" class="active">My Appointments</a>
+    </nav>
+    <div class="profile-menu">
+      <button type="button" class="profile-trigger" id="profile-trigger">
+        <span class="profile-avatar" id="profile-avatar">--</span>
+        <span class="profile-caret">&#9662;</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <a href="/profile.html">My Profile</a>
+        <a href="/profile.html#notifications">Notification Settings</a>
+        <a href="/forgot-password.html">Change Password</a>
+        <hr />
+        <button type="button" class="logout" data-action="logout">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="appt-header-row">
+      <h1>My Appointments</h1>
+      <a class="btn-primary-sm" href="/providers.html">+ Schedule New Appointment</a>
+    </div>
+
+    <h2 class="section-title">Upcoming Appointments</h2>
+    <div class="appt-list" id="appt-list-upcoming">
+      <!-- upcoming appointment cards injected by script.js -->
+    </div>
+
+    <h2 class="section-title">Past Appointments</h2>
+    <div class="appt-list" id="appt-list-past">
+      <!-- past appointment cards injected by script.js -->
+    </div>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>

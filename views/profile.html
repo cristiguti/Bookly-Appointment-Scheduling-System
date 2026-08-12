@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - My Profile</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="logo">Bookly</a>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/providers.html">Find a Provider</a>
+      <a href="/Appointments.html">My Appointments</a>
+    </nav>
+    <div class="profile-menu">
+      <button type="button" class="profile-trigger" id="profile-trigger">
+        <span class="profile-avatar" id="profile-avatar">--</span>
+        <span class="profile-caret">&#9662;</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <a href="/profile.html">My Profile</a>
+        <a href="/profile.html#notifications">Notification Settings</a>
+        <a href="/forgot-password.html">Change Password</a>
+        <hr />
+        <button type="button" class="logout" data-action="logout">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <h1>My Profile</h1>
+
+    <div class="profile-header-card">
+      <span class="profile-avatar" id="profile-page-avatar">--</span>
+      <div>
+        <div class="profile-name" id="profile-page-name">&nbsp;</div>
+        <div class="profile-email" id="profile-page-email">&nbsp;</div>
+      </div>
+    </div>
+
+    <h2 class="section-title" id="notifications">Notification Settings</h2>
+    <p class="settings-intro">
+      Manage how Bookly keeps you updated about your appointments.
+    </p>
+
+    <div class="toggle-list">
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Appointment Confirmations</div>
+          <div class="toggle-desc">Receive an email when you book an appointment.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="notif-confirmations" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">24-Hour Appointment Reminders</div>
+          <div class="toggle-desc">Receive an email before an upcoming appointment.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="notif-reminders" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Appointment Changes</div>
+          <div class="toggle-desc">Receive an email when an appointment is rescheduled or canceled.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="notif-changes" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>

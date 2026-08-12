@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - Dashboard</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="logo">Bookly</a>
+    <nav class="nav">
+      <a href="/" class="active">Dashboard</a>
+      <a href="/providers.html">Find a Provider</a>
+      <a href="/Appointments.html">My Appointments</a>
+    </nav>
+    <div class="profile-menu">
+      <button type="button" class="profile-trigger" id="profile-trigger">
+        <span class="profile-avatar" id="profile-avatar">--</span>
+        <span class="profile-caret">&#9662;</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <a href="/profile.html">My Profile</a>
+        <a href="/profile.html#notifications">Notification Settings</a>
+        <a href="/forgot-password.html">Change Password</a>
+        <hr />
+        <button type="button" class="logout" data-action="logout">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <h1 class="dashboard-greeting" id="dashboard-greeting">Welcome back</h1>
+
+    <h2 class="section-title">Your Next Appointment</h2>
+    <div id="next-appt-container">
+      <!-- next appointment card injected by script.js -->
+    </div>
+
+    <h2 class="section-title">Quick Actions</h2>
+    <div class="quick-actions">
+      <a class="quick-tile" href="/providers.html">
+        <span class="label">Schedule Appointment</span>
+      </a>
+      <a class="quick-tile" href="/providers.html">
+        <span class="label">Find a Provider</span>
+      </a>
+      <a class="quick-tile" href="/Appointments.html">
+        <span class="label">My Appointments</span>
+      </a>
+      <a class="quick-tile" href="/profile.html#notifications">
+        <span class="label">Notification Settings</span>
+      </a>
+    </div>
+
+    <div id="reminder-container">
+      <!-- reminder banner injected by script.js -->
+    </div>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>

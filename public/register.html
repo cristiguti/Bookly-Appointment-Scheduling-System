@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - Create Account</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/login.html" class="logo">Bookly</a>
+  </header>
+
+  <main class="page">
+    <form class="login-wrap" id="register-form" novalidate>
+      <h1>Create your account</h1>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="full name"
+        autocomplete="name"
+        required
+      />
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="email"
+        autocomplete="username"
+        required
+      />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="password"
+        autocomplete="new-password"
+        required
+      />
+      <p class="muted">
+        Must be at least 6 characters, with an uppercase letter, a lowercase
+        letter, and a number.
+      </p>
+      <p class="error-msg" id="register-error"></p>
+      <p class="success-msg" id="register-success"></p>
+      <button type="submit" class="btn-primary">Sign Up</button>
+      <p class="form-switch">
+        Already have an account? <a href="/login.html">Log in</a>
+      </p>
+      <p class="form-switch">
+        <a href="/forgot-password.html">Forgot password?</a>
+      </p>
+    </form>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>

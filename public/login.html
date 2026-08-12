@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - Log In</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/login.html" class="logo">Bookly</a>
+  </header>
+
+  <main class="page">
+    <form class="login-wrap" id="login-form" novalidate>
+      <h1>Log in</h1>
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="email"
+        autocomplete="username"
+        required
+      />
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="password 6 characters minimum"
+        autocomplete="current-password"
+        required
+      />
+      <p class="error-msg" id="login-error"></p>
+      <p class="success-msg" id="login-success"></p>
+      <button type="submit" class="btn-primary">Log In</button>
+      <p class="form-switch">
+        <a href="/forgot-password.html">Forgot password?</a>
+      </p>
+      <p class="form-switch">
+        Don't have an account? <a href="/register.html">Create one</a>
+      </p>
+    </form>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bookly - Find a Provider</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <header class="header">
+    <a href="/" class="logo">Bookly</a>
+    <nav class="nav">
+      <a href="/">Dashboard</a>
+      <a href="/providers.html" class="active">Find a Provider</a>
+      <a href="/Appointments.html">My Appointments</a>
+    </nav>
+    <div class="profile-menu">
+      <button type="button" class="profile-trigger" id="profile-trigger">
+        <span class="profile-avatar" id="profile-avatar">--</span>
+        <span class="profile-caret">&#9662;</span>
+      </button>
+      <div class="profile-dropdown" id="profile-dropdown">
+        <a href="/profile.html">My Profile</a>
+        <a href="/profile.html#notifications">Notification Settings</a>
+        <a href="/forgot-password.html">Change Password</a>
+        <hr />
+        <button type="button" class="logout" data-action="logout">Log Out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <h1>Find a provider</h1>
+
+    <input
+      type="text"
+      id="provider-search"
+      class="search-input"
+      placeholder="Search Provider or Specialty"
+    />
+
+    <div class="finder-grid">
+      <section>
+        <h2>Providers</h2>
+        <div class="provider-list" id="provider-list">
+          <!-- provider cards injected by script.js -->
+        </div>
+      </section>
+
+      <section>
+        <h2 id="times-heading">Available Times</h2>
+        <select id="date-select" class="date-select hidden" aria-label="Select appointment date"></select>
+        <div class="times-grid" id="times-grid">
+          <!-- time slots injected by script.js -->
+        </div>
+        <button type="button" class="btn-book" id="book-btn" disabled>Book Appointment</button>
+      </section>
+    </div>
+  </main>
+
+  <script src="/script.js"></script>
+</body>
+</html>
