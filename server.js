@@ -13,6 +13,8 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const session = require("express-session");
+const mysql2 = require("mysql2");
+const MySQLStore = require("express-mysql-session")(session);
 const bcrypt = require("bcryptjs");
 const pool = require("./db");
 const { sendAppointmentConfirmation, sendAppointmentCancellation } = require("./mailer");
@@ -23,9 +25,26 @@ const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const VIEWS_DIR = path.join(__dirname, "views");
 
+// Sessions must be stored somewhere shared (not in-process memory):
+// on Vercel each request can hit a different serverless instance, so
+// the default MemoryStore would "forget" every login immediately.
+// express-mysql-session needs a callback-style pool, so this is a
+// separate mysql2 pool from the promise-based one in db.js.
+const sessionStore = new MySQLStore(
+  {},
+  mysql2.createPool({
+    host: process.env.DB_HOST || "localhost",
+    port: Number(process.env.DB_PORT) || 3306,
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "",
+    database: process.env.DB_NAME || "bookly",
+  })
+);
+
 app.use(express.json());
 app.use(
   session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
@@ -77,18 +96,6 @@ app.get("/forgot-password.html", (req, res) => {
 
 /* ---------- Public static assets ---------- */
 app.use(express.static(PUBLIC_DIR, { index: false, extensions: ["html"] }));
-
-/* TEMPORARY: confirms which env vars the deployed function actually
-   sees, without exposing the password. Remove after debugging. */
-app.get("/api/debug-env", (req, res) => {
-  res.json({
-    DB_HOST: process.env.DB_HOST || "(unset - defaulting to localhost)",
-    DB_PORT: process.env.DB_PORT || "(unset - defaulting to 3306)",
-    DB_USER: process.env.DB_USER || "(unset - defaulting to root)",
-    DB_NAME: process.env.DB_NAME || "(unset - defaulting to bookly)",
-    DB_PASSWORD_length: (process.env.DB_PASSWORD || "").length,
-  });
-});
 
 /* ==========================================================
    AUTH API
