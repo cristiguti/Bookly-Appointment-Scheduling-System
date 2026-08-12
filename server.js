@@ -78,6 +78,18 @@ app.get("/forgot-password.html", (req, res) => {
 /* ---------- Public static assets ---------- */
 app.use(express.static(PUBLIC_DIR, { index: false, extensions: ["html"] }));
 
+/* TEMPORARY: confirms which env vars the deployed function actually
+   sees, without exposing the password. Remove after debugging. */
+app.get("/api/debug-env", (req, res) => {
+  res.json({
+    DB_HOST: process.env.DB_HOST || "(unset - defaulting to localhost)",
+    DB_PORT: process.env.DB_PORT || "(unset - defaulting to 3306)",
+    DB_USER: process.env.DB_USER || "(unset - defaulting to root)",
+    DB_NAME: process.env.DB_NAME || "(unset - defaulting to bookly)",
+    DB_PASSWORD_length: (process.env.DB_PASSWORD || "").length,
+  });
+});
+
 /* ==========================================================
    AUTH API
    ========================================================== */
