@@ -14,6 +14,14 @@ const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
 const PASSWORD_REQUIREMENTS_MSG =
   "Password must be at least 6 characters and include an uppercase letter, a lowercase letter, and a number.";
 
+// Escapes free-text (e.g. a patient's typed "reason for visit") before it's
+// dropped into an innerHTML template.
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = String(str || "");
+  return div.innerHTML;
+}
+
 /* ---------- API helper ---------- */
 // Wraps fetch: sends/receives JSON, sends the session cookie, and
 // bounces to the login page if the server says we're not authenticated.
@@ -93,6 +101,103 @@ function initProfileMenu() {
       });
     })
     .catch(() => {});
+}
+
+/* ---------- HELP BAR (every page) ---------- */
+function initHelpBar() {
+  if (document.getElementById("help-bar")) return;
+
+  document.body.classList.add("has-help-bar");
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `
+    <div class="help-bar" id="help-bar">
+      <span class="help-bar-text">Need Help? Call <a href="tel:+15551234567">(555) 123-4567</a></span>
+      <button type="button" class="help-bar-btn" id="help-chat-btn">Chat Now</button>
+    </div>
+    <div class="help-modal-overlay" id="help-modal-overlay">
+      <div class="help-modal">
+        <button type="button" class="help-modal-close" id="help-modal-close" aria-label="Close">&times;</button>
+        <h3>Need Help?</h3>
+        <p class="help-modal-desc">Send us a message and we'll reply to your email.</p>
+        <form id="help-modal-form">
+          <input type="email" id="help-email" placeholder="Your email" required />
+          <textarea id="help-message" placeholder="How can we help?" rows="4" required></textarea>
+          <button type="submit" class="btn-primary">Send Message</button>
+          <div class="error-msg" id="help-modal-error"></div>
+          <div class="success-msg" id="help-modal-success"></div>
+        </form>
+      </div>
+    </div>
+    <div class="help-confirmation" id="help-confirmation">
+      <div class="reminder-banner">
+        <div class="reminder-title">Message Sent</div>
+        <div class="reminder-body">
+          We've received your message and a member of our team will follow up by email.
+        </div>
+        <div class="reminder-note">Expect a response within 1 business day</div>
+      </div>
+    </div>
+    `
+  );
+
+  const overlay = document.getElementById("help-modal-overlay");
+  const form = document.getElementById("help-modal-form");
+  const errorEl = document.getElementById("help-modal-error");
+  const successEl = document.getElementById("help-modal-success");
+  const confirmationBanner = document.getElementById("help-confirmation");
+
+  const openModal = () => overlay.classList.add("open");
+  const closeModal = () => overlay.classList.remove("open");
+
+  let confirmationTimeout;
+  function showConfirmationBanner() {
+    confirmationBanner.classList.add("show");
+    clearTimeout(confirmationTimeout);
+    confirmationTimeout = setTimeout(() => {
+      confirmationBanner.classList.remove("show");
+    }, 6000);
+  }
+
+  document.getElementById("help-chat-btn").addEventListener("click", openModal);
+  document.getElementById("help-modal-close").addEventListener("click", closeModal);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeModal();
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.textContent = "";
+    successEl.textContent = "";
+
+    const email = document.getElementById("help-email").value.trim();
+    const message = document.getElementById("help-message").value.trim();
+
+    if (!EMAIL_PATTERN.test(email)) {
+      errorEl.textContent = "Please enter a valid email address.";
+      return;
+    }
+    if (!message) {
+      errorEl.textContent = "Please enter a message.";
+      return;
+    }
+
+    try {
+      await api("/api/support", {
+        method: "POST",
+        body: { email, message },
+        redirectOn401: false,
+      });
+      successEl.textContent = "Message sent! We'll respond within 1 business day.";
+      form.reset();
+      setTimeout(() => {
+        closeModal();
+        showConfirmationBanner();
+      }, 1200);
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+  });
 }
 
 /* ---------- LOGIN PAGE ---------- */
@@ -220,21 +325,127 @@ function initForgotPasswordPage() {
 }
 
 /* ---------- FIND A PROVIDER PAGE ---------- */
+const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MONTH_LABELS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 function initProvidersPage() {
   const providerList = document.getElementById("provider-list");
   if (!providerList) return;
 
   const searchInput = document.getElementById("provider-search");
-  const dateSelect = document.getElementById("date-select");
   const timesGrid = document.getElementById("times-grid");
   const timesHeading = document.getElementById("times-heading");
   const bookBtn = document.getElementById("book-btn");
+  const reasonInput = document.getElementById("reason-input");
+
+  const datePicker = document.getElementById("date-picker");
+  const dateTrigger = document.getElementById("date-picker-trigger");
+  const dateLabel = document.getElementById("date-picker-label");
+  const datePanel = document.getElementById("date-picker-panel");
+  const monthLabel = document.getElementById("date-picker-month-label");
+  const calendarGrid = document.getElementById("date-picker-grid");
+  const prevMonthBtn = document.getElementById("date-picker-prev");
+  const nextMonthBtn = document.getElementById("date-picker-next");
 
   let providers = []; // loaded from API
   let slots = []; // availability for the selected provider (all dates)
   let selectedProviderId = null;
-  let selectedDate = null; // dateValue (YYYY-MM-DD) chosen in the calendar dropdown
+  let selectedDate = null; // dateValue (YYYY-MM-DD) chosen in the calendar
   let selectedSlotId = null;
+  let datesWithSlots = new Set(); // dateValues that have open slots
+  let viewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+  function toDateValue(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+  }
+
+  function labelForDate(dateValue) {
+    const match = slots.find((s) => s.dateValue === dateValue);
+    return match ? match.dayLabel : "Select a date";
+  }
+
+  function closeDatePanel() {
+    datePanel.classList.remove("open");
+  }
+
+  // Availability is seeded 6 months out from today (a date offset, not a
+  // calendar-month one), so it can spill into a 7th distinct month — cap
+  // navigation there so every seeded slot stays reachable.
+  function renderCalendar() {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const currentMonthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const maxMonthStart = new Date(currentMonthStart);
+    maxMonthStart.setMonth(maxMonthStart.getMonth() + 6);
+
+    const year = viewMonth.getFullYear();
+    const month = viewMonth.getMonth();
+    monthLabel.textContent = `${MONTH_LABELS[month]} ${year}`;
+    prevMonthBtn.disabled = viewMonth <= currentMonthStart;
+    nextMonthBtn.disabled = viewMonth >= maxMonthStart;
+
+    calendarGrid.innerHTML = "";
+    WEEKDAY_LABELS.forEach((label) => {
+      const el = document.createElement("div");
+      el.className = "date-picker-weekday";
+      el.textContent = label;
+      calendarGrid.appendChild(el);
+    });
+
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < firstWeekday; i++) {
+      calendarGrid.appendChild(document.createElement("div"));
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const cellDate = new Date(year, month, day);
+      const dateValue = toDateValue(cellDate);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "date-picker-day";
+      btn.textContent = String(day);
+
+      if (!datesWithSlots.has(dateValue) || cellDate < todayStart) {
+        btn.disabled = true;
+        btn.classList.add("muted");
+      } else {
+        if (dateValue === selectedDate) btn.classList.add("selected");
+        btn.addEventListener("click", () => {
+          selectedDate = dateValue;
+          selectedSlotId = null;
+          dateLabel.textContent = labelForDate(selectedDate);
+          closeDatePanel();
+          renderTimes();
+          updateBookButton();
+          renderCalendar();
+        });
+      }
+      calendarGrid.appendChild(btn);
+    }
+  }
+
+  dateTrigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    datePanel.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!datePicker.contains(e.target)) closeDatePanel();
+  });
+  prevMonthBtn.addEventListener("click", () => {
+    viewMonth.setMonth(viewMonth.getMonth() - 1);
+    renderCalendar();
+  });
+  nextMonthBtn.addEventListener("click", () => {
+    viewMonth.setMonth(viewMonth.getMonth() + 1);
+    renderCalendar();
+  });
 
   function renderProviders(filter = "") {
     const query = filter.toLowerCase();
@@ -273,8 +484,8 @@ function initProvidersPage() {
 
     timesHeading.textContent = "Loading times…";
     timesGrid.innerHTML = "";
-    dateSelect.innerHTML = "";
-    dateSelect.classList.add("hidden");
+    closeDatePanel();
+    datePicker.classList.add("hidden");
     try {
       slots = await api(`/api/providers/${id}/availability`);
       populateDates();
@@ -285,28 +496,22 @@ function initProvidersPage() {
     }
   }
 
-  // Builds the calendar dropdown from the distinct dates in `slots`,
-  // preserving the date order the API already sorted them in.
+  // Builds the set of bookable dates from `slots` and points the calendar
+  // at the soonest one (the API already sorts slots earliest-first).
   function populateDates() {
-    const seen = new Set();
-    dateSelect.innerHTML = "";
-    slots.forEach((slot) => {
-      if (seen.has(slot.dateValue)) return;
-      seen.add(slot.dateValue);
-      const opt = document.createElement("option");
-      opt.value = slot.dateValue;
-      opt.textContent = slot.dayLabel;
-      dateSelect.appendChild(opt);
-    });
+    datesWithSlots = new Set(slots.map((s) => s.dateValue));
 
-    if (seen.size === 0) {
+    if (datesWithSlots.size === 0) {
       selectedDate = null;
-      dateSelect.classList.add("hidden");
+      datePicker.classList.add("hidden");
       return;
     }
-    selectedDate = dateSelect.options[0].value;
-    dateSelect.value = selectedDate;
-    dateSelect.classList.remove("hidden");
+    selectedDate = slots[0].dateValue;
+    dateLabel.textContent = labelForDate(selectedDate);
+    const [y, m] = selectedDate.split("-").map(Number);
+    viewMonth = new Date(y, m - 1, 1);
+    datePicker.classList.remove("hidden");
+    renderCalendar();
   }
 
   function renderTimes() {
@@ -339,16 +544,15 @@ function initProvidersPage() {
     });
   }
 
-  dateSelect.addEventListener("change", () => {
-    selectedDate = dateSelect.value;
-    selectedSlotId = null;
-    renderTimes();
-    updateBookButton();
-  });
-
   function updateBookButton() {
-    bookBtn.disabled = !(selectedProviderId && selectedSlotId);
+    bookBtn.disabled = !(
+      selectedProviderId &&
+      selectedSlotId &&
+      reasonInput.value.trim()
+    );
   }
+
+  reasonInput.addEventListener("input", updateBookButton);
 
   bookBtn.addEventListener("click", async () => {
     if (bookBtn.disabled) return;
@@ -356,7 +560,7 @@ function initProvidersPage() {
     try {
       await api("/api/appointments", {
         method: "POST",
-        body: { slotId: selectedSlotId },
+        body: { slotId: selectedSlotId, reason: reasonInput.value.trim() },
       });
       window.location.href = "/Appointments.html";
     } catch (err) {
@@ -425,6 +629,7 @@ function initDashboardPage() {
             <span>${next.timeLabel}</span>
             <span>${next.location || ""}</span>
           </div>
+          ${next.reason ? `<div class="reason">Reason: ${escapeHtml(next.reason)}</div>` : ""}
           <div class="appt-actions">
             <a class="btn-outline" href="/Appointments.html">View Details</a>
             <a class="btn-outline" href="/providers.html">Reschedule</a>
@@ -470,6 +675,7 @@ function initAppointmentsPage() {
           <div class="name">${appt.providerName}</div>
           <div class="specialty">${appt.providerSpecialty}</div>
           <div class="datetime">${appt.dayLabel}, ${appt.timeLabel}</div>
+          ${appt.reason ? `<div class="reason">Reason: ${escapeHtml(appt.reason)}</div>` : ""}
           <span class="status-badge confirmed">Confirmed</span>
         </div>
         <div class="appt-actions">
@@ -495,6 +701,7 @@ function initAppointmentsPage() {
           <div class="name">${appt.providerName}</div>
           <div class="specialty">${appt.providerSpecialty}</div>
           <div class="datetime">${appt.dayLabel}, ${appt.timeLabel}</div>
+          ${appt.reason ? `<div class="reason">Reason: ${escapeHtml(appt.reason)}</div>` : ""}
           <span class="status-badge past">Past</span>
         </div>
       `;
@@ -572,6 +779,7 @@ function initProfilePage() {
 document.addEventListener("DOMContentLoaded", () => {
   initLogout();
   initProfileMenu();
+  initHelpBar();
   initLoginPage();
   initRegisterPage();
   initForgotPasswordPage();

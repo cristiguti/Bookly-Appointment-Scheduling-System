@@ -60,6 +60,7 @@ async function main() {
       id INT AUTO_INCREMENT PRIMARY KEY,
       patient_id INT NOT NULL,
       slot_id INT NOT NULL,
+      reason VARCHAR(500),
       status ENUM('pending','confirmed','cancelled') NOT NULL DEFAULT 'confirmed',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
@@ -67,6 +68,17 @@ async function main() {
     );
   `);
   console.log("✓ Tables ready");
+
+  // Migration: add `reason` to appointments for installs that already had
+  // the table before this column existed.
+  try {
+    await root.query(
+      "ALTER TABLE appointments ADD COLUMN reason VARCHAR(500) AFTER slot_id"
+    );
+    console.log("✓ Added reason column to appointments");
+  } catch (err) {
+    if (err.code !== "ER_DUP_FIELDNAME") throw err;
+  }
 
   // 3) Seed providers + availability (only if empty)
   const [[{ cnt }]] = await root.query(
@@ -79,7 +91,11 @@ async function main() {
       { name: "Dr. Maya Chen", specialty: "Dermatology", location: "Bookly Main Clinic" },
       { name: "Dr. Omar Haddad", specialty: "Cardiology", location: "Bookly South Clinic" },
     ];
-    const times = ["09:00:00", "09:40:00", "11:00:00", "13:00:00", "15:20:00"];
+    const times = [
+      "08:00:00", "08:40:00", "09:20:00", "10:00:00", "10:40:00", "11:20:00",
+      "12:00:00", "12:40:00", "13:20:00", "14:00:00", "14:40:00", "15:20:00",
+      "16:00:00", "16:40:00",
+    ];
     const slotDate = "2026-07-28";
 
     for (const p of providers) {

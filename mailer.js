@@ -10,6 +10,7 @@
 const nodemailer = require("nodemailer");
 
 const FROM = process.env.EMAIL_FROM || "Bookly <no-reply@bookly.test>";
+const SUPPORT_INBOX = process.env.SUPPORT_EMAIL || "echristina14@outlook.com";
 
 let transporterPromise = null;
 
@@ -40,9 +41,9 @@ function getTransporter() {
   return transporterPromise;
 }
 
-async function sendMail({ to, subject, text }) {
+async function sendMail({ to, subject, text, replyTo }) {
   const transporter = await getTransporter();
-  const info = await transporter.sendMail({ from: FROM, to, subject, text });
+  const info = await transporter.sendMail({ from: FROM, to, subject, text, replyTo });
   const previewUrl = nodemailer.getTestMessageUrl(info);
   if (previewUrl) console.log(`Email preview (${subject}): ${previewUrl}`);
   return info;
@@ -55,6 +56,7 @@ function sendAppointmentConfirmation({
   dayLabel,
   timeLabel,
   location,
+  reason,
 }) {
   return sendMail({
     to,
@@ -63,6 +65,7 @@ function sendAppointmentConfirmation({
       `Hi ${patientName},\n\n` +
       `Your appointment with ${providerName} is confirmed for ${dayLabel} at ${timeLabel}` +
       (location ? ` at ${location}.` : ".") +
+      (reason ? `\n\nReason for visit: ${reason}` : "") +
       `\n\nThanks for using Bookly.`,
   });
 }
@@ -84,4 +87,27 @@ function sendAppointmentCancellation({
   });
 }
 
-module.exports = { sendAppointmentConfirmation, sendAppointmentCancellation };
+// Support request from the "Chat Now" help bar: forwards the patient's
+// message to the support inbox (Reply-To set to their address so support
+// can just hit reply), and sends them a short acknowledgement.
+async function sendSupportRequest({ fromEmail, message }) {
+  await sendMail({
+    to: SUPPORT_INBOX,
+    subject: "Bookly: New Help Request",
+    text: `From: ${fromEmail}\n\n${message}`,
+    replyTo: fromEmail,
+  });
+  await sendMail({
+    to: fromEmail,
+    subject: "Bookly: We received your message",
+    text:
+      `Hi,\n\nThanks for reaching out to Bookly support. We received your message:\n\n"${message}"\n\n` +
+      `Our team will reply to this email address as soon as possible.`,
+  });
+}
+
+module.exports = {
+  sendAppointmentConfirmation,
+  sendAppointmentCancellation,
+  sendSupportRequest,
+};

@@ -11,7 +11,12 @@ require("dotenv").config();
 const mysql = require("mysql2/promise");
 
 const DB_NAME = process.env.DB_NAME || "bookly";
-const TIMES = ["09:00:00", "09:40:00", "11:00:00", "13:00:00", "15:20:00"];
+// 40-minute slots covering the clinic's full 8am-5pm day.
+const TIMES = [
+  "08:00:00", "08:40:00", "09:20:00", "10:00:00", "10:40:00", "11:20:00",
+  "12:00:00", "12:40:00", "13:20:00", "14:00:00", "14:40:00", "15:20:00",
+  "16:00:00", "16:40:00",
+];
 const MONTHS_AHEAD = 6;
 
 async function main() {

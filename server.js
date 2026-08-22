@@ -17,7 +17,11 @@ const mysql2 = require("mysql2");
 const MySQLStore = require("express-mysql-session")(session);
 const bcrypt = require("bcryptjs");
 const pool = require("./db");
-const { sendAppointmentConfirmation, sendAppointmentCancellation } = require("./mailer");
+const {
+  sendAppointmentConfirmation,
+  sendAppointmentCancellation,
+  sendSupportRequest,
+} = require("./mailer");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -231,6 +235,33 @@ app.get("/api/me", requireAuthApi, async (req, res) => {
 });
 
 /* ==========================================================
+   SUPPORT API
+   Backs the "Chat Now" help bar shown on every page (logged in
+   or not), so this route intentionally has no auth guard.
+   ========================================================== */
+app.post("/api/support", async (req, res) => {
+  const { email, message } = req.body || {};
+  if (!email || !message) {
+    return res.status(400).json({ error: "Email and message are required." });
+  }
+  const cleanEmail = String(email).trim().toLowerCase();
+  if (!EMAIL_PATTERN.test(cleanEmail)) {
+    return res.status(400).json({ error: "Please enter a valid email address." });
+  }
+  const cleanMessage = String(message).trim().slice(0, 2000);
+  if (!cleanMessage) {
+    return res.status(400).json({ error: "Please enter a message." });
+  }
+  try {
+    await sendSupportRequest({ fromEmail: cleanEmail, message: cleanMessage });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("support request error:", err.message);
+    res.status(500).json({ error: "Couldn't send your message. Please try again." });
+  }
+});
+
+/* ==========================================================
    ADMIN / DEV API
    Lets you inspect patient records from the backend as JSON.
    Never returns password_hash — password hashes are one-way,
@@ -267,7 +298,10 @@ app.get("/api/providers/:id/availability", requireAuthApi, async (req, res) => {
   const providerId = Number(req.params.id);
   if (!providerId) return res.status(400).json({ error: "Invalid provider." });
   try {
-    // Return only slots that are not already booked.
+    // Return only slots that are not already booked, and skip any date
+    // where this patient already holds a confirmed appointment with this
+    // same provider — they shouldn't be able to double-book the same
+    // provider twice in one day.
     const [rows] = await pool.query(
       `SELECT s.id,
               DATE_FORMAT(s.slot_date, '%Y-%m-%d') AS dateValue,
@@ -277,8 +311,16 @@ app.get("/api/providers/:id/availability", requireAuthApi, async (req, res) => {
         WHERE s.provider_id = ?
           AND s.is_booked = FALSE
           AND s.slot_date >= CURDATE()
+          AND s.slot_date NOT IN (
+            SELECT s2.slot_date
+              FROM appointments a
+              JOIN availability_slots s2 ON s2.id = a.slot_id
+             WHERE a.patient_id = ?
+               AND a.status = 'confirmed'
+               AND s2.provider_id = ?
+          )
         ORDER BY s.slot_date, s.slot_time`,
-      [providerId]
+      [providerId, req.session.userId, providerId]
     );
     res.json(rows);
   } catch (err) {
@@ -294,6 +336,7 @@ app.get("/api/appointments", requireAuthApi, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT a.id,
+              a.reason AS reason,
               p.name AS providerName,
               p.specialty AS providerSpecialty,
               p.location AS location,
@@ -316,8 +359,12 @@ app.get("/api/appointments", requireAuthApi, async (req, res) => {
 });
 
 app.post("/api/appointments", requireAuthApi, async (req, res) => {
-  const { slotId } = req.body || {};
+  const { slotId, reason } = req.body || {};
   if (!slotId) return res.status(400).json({ error: "A time slot is required." });
+  const cleanReason = String(reason || "").trim().slice(0, 500);
+  if (!cleanReason) {
+    return res.status(400).json({ error: "Please tell us the reason for your visit." });
+  }
   try {
     const [slots] = await pool.query(
       "SELECT id, is_booked FROM availability_slots WHERE id = ?",
@@ -351,9 +398,30 @@ app.post("/api/appointments", requireAuthApi, async (req, res) => {
       });
     }
 
+    // A patient can only hold one appointment per provider per day, even
+    // at a different time — mirrors the filtering already done in
+    // GET /api/providers/:id/availability, but enforced here too in case
+    // the slot list the client is booking against is stale.
+    const [sameProviderSameDay] = await pool.query(
+      `SELECT a.id
+         FROM appointments a
+         JOIN availability_slots s ON s.id = a.slot_id
+         JOIN availability_slots target ON target.id = ?
+        WHERE a.patient_id = ?
+          AND a.status = 'confirmed'
+          AND s.provider_id = target.provider_id
+          AND s.slot_date = target.slot_date`,
+      [Number(slotId), req.session.userId]
+    );
+    if (sameProviderSameDay.length) {
+      return res.status(409).json({
+        error: "You already have an appointment with this provider on that day.",
+      });
+    }
+
     await pool.query(
-      "INSERT INTO appointments (patient_id, slot_id) VALUES (?, ?)",
-      [req.session.userId, Number(slotId)]
+      "INSERT INTO appointments (patient_id, slot_id, reason) VALUES (?, ?, ?)",
+      [req.session.userId, Number(slotId), cleanReason]
     );
     await pool.query(
       "UPDATE availability_slots SET is_booked = TRUE WHERE id = ?",
@@ -380,6 +448,7 @@ app.post("/api/appointments", requireAuthApi, async (req, res) => {
         dayLabel: details.dayLabel,
         timeLabel: details.timeLabel,
         location: details.location,
+        reason: cleanReason,
       });
     } catch (mailErr) {
       console.error("confirmation email failed:", mailErr.message);
