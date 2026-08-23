@@ -285,11 +285,50 @@ app.get("/api/admin/patients", requireAuthApi, async (req, res) => {
 app.get("/api/providers", requireAuthApi, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      "SELECT id, name, specialty, location FROM healthcare_providers ORDER BY name"
+      `SELECT id, name, specialty, location, rating, review_count, years_experience
+         FROM healthcare_providers
+        ORDER BY name`
     );
     res.json(rows);
   } catch (err) {
     console.error("providers error:", err);
+    res.status(500).json({ error: "Server error." });
+  }
+});
+
+// Parses a column that mysql2 may return as a JS array/object (JSON type)
+// or as a raw string, depending on driver/server version.
+function parseJsonColumn(value, fallback) {
+  if (value == null) return fallback;
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+app.get("/api/providers/:id", requireAuthApi, async (req, res) => {
+  const providerId = Number(req.params.id);
+  if (!providerId) return res.status(400).json({ error: "Invalid provider." });
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, name, specialty, location, rating, review_count, years_experience,
+              bio, education, specialties, reviews
+         FROM healthcare_providers
+        WHERE id = ?`,
+      [providerId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Provider not found." });
+    }
+    const provider = rows[0];
+    provider.education = parseJsonColumn(provider.education, []);
+    provider.specialties = parseJsonColumn(provider.specialties, []);
+    provider.reviews = parseJsonColumn(provider.reviews, []);
+    res.json(provider);
+  } catch (err) {
+    console.error("provider detail error:", err);
     res.status(500).json({ error: "Server error." });
   }
 });

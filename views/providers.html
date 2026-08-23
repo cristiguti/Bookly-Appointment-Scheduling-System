@@ -31,25 +31,26 @@
   </header>
 
   <main class="page">
-    <h1>Find a provider</h1>
+    <div id="finder-view">
+      <h1>Find a provider</h1>
 
-    <input
-      type="text"
-      id="provider-search"
-      class="search-input"
-      placeholder="Search Provider or Specialty"
-    />
+      <input
+        type="text"
+        id="provider-search"
+        class="search-input"
+        placeholder="Search Provider or Specialty"
+      />
 
-    <div class="finder-grid">
-      <section>
-        <h2>Providers</h2>
-        <div class="provider-list" id="provider-list">
-          <!-- provider cards injected by script.js -->
-        </div>
-      </section>
+      <div class="finder-grid">
+        <section>
+          <h2>Providers</h2>
+          <div class="provider-list" id="provider-list">
+            <!-- provider cards injected by script.js -->
+          </div>
+        </section>
 
-      <section>
-        <h2 id="times-heading">Available Times</h2>
+        <section id="booking-panel">
+          <h2 id="times-heading">Available Times</h2>
         <div class="date-picker hidden" id="date-picker">
           <button type="button" class="date-picker-trigger" id="date-picker-trigger" aria-haspopup="true">
             <svg class="calendar-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -80,7 +81,60 @@
           placeholder="Briefly describe why you're booking this appointment"
         ></textarea>
         <button type="button" class="btn-book" id="book-btn" disabled>Book Appointment</button>
-      </section>
+        </section>
+      </div>
+    </div>
+
+    <div class="provider-detail hidden" id="provider-detail">
+      <button type="button" class="back-link" id="back-to-providers">&larr; Back to providers</button>
+
+      <div class="provider-detail-header">
+        <span class="provider-avatar-xl" id="detail-avatar">--</span>
+        <div>
+          <h1 id="detail-name"></h1>
+          <div class="detail-specialty" id="detail-specialty"></div>
+          <div class="detail-meta-row">
+            <span class="provider-rating" id="detail-rating"></span>
+            <span class="dot">&bull;</span>
+            <span id="detail-experience"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-card">
+          <h3>About</h3>
+          <p id="detail-bio"></p>
+        </div>
+        <div class="detail-card">
+          <h3>Education</h3>
+          <ul id="detail-education"></ul>
+        </div>
+        <div class="detail-card">
+          <h3>Specialties</h3>
+          <ul class="check-list" id="detail-specialties"></ul>
+        </div>
+      </div>
+
+      <div class="detail-stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Experience</div>
+          <div class="stat-value" id="detail-exp-stat"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Location</div>
+          <div class="stat-value" id="detail-location-stat"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Patient Rating</div>
+          <div class="stat-value" id="detail-rating-stat"></div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Recent Patient Reviews</h2>
+      <div class="reviews-grid" id="detail-reviews"></div>
+
+      <button type="button" class="btn-book" id="detail-book-btn">Book an Appointment</button>
     </div>
   </main>
 

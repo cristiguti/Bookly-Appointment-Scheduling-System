@@ -81,6 +81,15 @@ function getInitials(name) {
   return (first + last).toUpperCase();
 }
 
+// Same as getInitials, but drops a leading "Dr." title so "Dr. Maya Chen"
+// reads as "MC" instead of "DC".
+function getProviderInitials(name) {
+  return getInitials(String(name || "").replace(/^dr\.?\s+/i, ""));
+}
+
+const STAR_ICON_SVG =
+  '<svg class="star-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.2 21 12 17.56 5.8 21 7 14.14l-5-4.87 7.1-1.01L12 2z"/></svg>';
+
 /* ---------- PROFILE DROPDOWN (header, any logged-in page) ---------- */
 function initProfileMenu() {
   const trigger = document.getElementById("profile-trigger");
@@ -112,6 +121,14 @@ function initHelpBar() {
     "beforeend",
     `
     <div class="help-bar" id="help-bar">
+      <span class="help-bar-icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 13v-1a8 8 0 0 1 16 0v1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <rect x="2.5" y="13" width="5" height="7" rx="2.5" stroke="currentColor" stroke-width="2"/>
+          <rect x="16.5" y="13" width="5" height="7" rx="2.5" stroke="currentColor" stroke-width="2"/>
+          <path d="M19.5 20v.5a3.5 3.5 0 0 1-3.5 3.5h-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </span>
       <span class="help-bar-text">Need Help? Call <a href="tel:+15551234567">(555) 123-4567</a></span>
       <button type="button" class="help-bar-btn" id="help-chat-btn">Chat Now</button>
     </div>
@@ -350,6 +367,13 @@ function initProvidersPage() {
   const prevMonthBtn = document.getElementById("date-picker-prev");
   const nextMonthBtn = document.getElementById("date-picker-next");
 
+  const finderView = document.getElementById("finder-view");
+  const providerDetail = document.getElementById("provider-detail");
+  const backToProvidersBtn = document.getElementById("back-to-providers");
+  const detailBookBtn = document.getElementById("detail-book-btn");
+  const bookingPanel = document.getElementById("booking-panel");
+  let detailProviderId = null;
+
   let providers = []; // loaded from API
   let slots = []; // availability for the selected provider (all dates)
   let selectedProviderId = null;
@@ -462,18 +486,111 @@ function initProvidersPage() {
     }
 
     filtered.forEach((provider) => {
-      const card = document.createElement("button");
-      card.type = "button";
+      const card = document.createElement("div");
       card.className = "provider-card";
       if (provider.id === selectedProviderId) card.classList.add("selected");
+      const rating = Number(provider.rating).toFixed(1);
       card.innerHTML = `
-        <div class="name">${provider.name}</div>
-        <div class="specialty">${provider.specialty}</div>
+        <button type="button" class="provider-card-main">
+          <span class="provider-avatar-lg">${getProviderInitials(provider.name)}</span>
+          <div class="provider-card-info">
+            <div class="name">${escapeHtml(provider.name)}</div>
+            <div class="specialty">${escapeHtml(provider.specialty)}</div>
+            <div class="provider-card-meta">
+              <span class="provider-rating">${STAR_ICON_SVG} ${rating} (${provider.review_count} reviews)</span>
+              <span class="dot">&bull;</span>
+              <span>${provider.years_experience} years experience</span>
+            </div>
+          </div>
+        </button>
+        <button type="button" class="view-profile-btn">View Profile <span aria-hidden="true">&rarr;</span></button>
       `;
-      card.addEventListener("click", () => selectProvider(provider.id));
+      card
+        .querySelector(".provider-card-main")
+        .addEventListener("click", () => selectProvider(provider.id));
+      card.querySelector(".view-profile-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        showProviderDetail(provider.id);
+      });
       providerList.appendChild(card);
     });
   }
+
+  async function showProviderDetail(id) {
+    detailProviderId = id;
+    finderView.classList.add("hidden");
+    providerDetail.classList.remove("hidden");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    document.getElementById("detail-name").textContent = "Loading…";
+    document.getElementById("detail-specialty").textContent = "";
+    document.getElementById("detail-rating").innerHTML = "";
+    document.getElementById("detail-experience").textContent = "";
+    document.getElementById("detail-bio").textContent = "";
+    document.getElementById("detail-education").innerHTML = "";
+    document.getElementById("detail-specialties").innerHTML = "";
+    document.getElementById("detail-reviews").innerHTML = "";
+
+    try {
+      const provider = await api(`/api/providers/${id}`);
+      renderProviderDetail(provider);
+    } catch (err) {
+      document.getElementById("detail-name").textContent = "Unable to load provider";
+      document.getElementById("detail-bio").textContent = err.message;
+    }
+  }
+
+  function renderProviderDetail(provider) {
+    const rating = Number(provider.rating).toFixed(1);
+    document.getElementById("detail-avatar").textContent = getProviderInitials(provider.name);
+    document.getElementById("detail-name").textContent = provider.name;
+    document.getElementById("detail-specialty").textContent = provider.specialty;
+    document.getElementById("detail-rating").innerHTML =
+      `${STAR_ICON_SVG} ${rating} (${provider.review_count} reviews)`;
+    document.getElementById("detail-experience").textContent =
+      `${provider.years_experience} years experience`;
+    document.getElementById("detail-bio").textContent = provider.bio || "";
+
+    document.getElementById("detail-education").innerHTML = (provider.education || [])
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join("");
+    document.getElementById("detail-specialties").innerHTML = (provider.specialties || [])
+      .map((item) => `<li>${escapeHtml(item)}</li>`)
+      .join("");
+
+    document.getElementById("detail-exp-stat").textContent = `${provider.years_experience} years`;
+    document.getElementById("detail-location-stat").textContent = provider.location || "—";
+    document.getElementById("detail-rating-stat").textContent =
+      `${rating} / 5 — ${provider.review_count} reviews`;
+
+    const reviews = provider.reviews || [];
+    document.getElementById("detail-reviews").innerHTML = reviews.length
+      ? reviews
+          .map(
+            (r) => `
+        <div class="review-card">
+          <div class="provider-rating">${STAR_ICON_SVG} ${r.rating}/5</div>
+          <p>${escapeHtml(r.comment)}</p>
+          <div class="review-author">${escapeHtml(r.patient)}</div>
+        </div>`
+          )
+          .join("")
+      : `<p class="muted">No reviews yet.</p>`;
+  }
+
+  function hideProviderDetail() {
+    providerDetail.classList.add("hidden");
+    finderView.classList.remove("hidden");
+  }
+
+  backToProvidersBtn.addEventListener("click", hideProviderDetail);
+
+  detailBookBtn.addEventListener("click", () => {
+    if (detailProviderId == null) return;
+    hideProviderDetail();
+    selectProvider(detailProviderId);
+    bookingPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   async function selectProvider(id) {
     selectedProviderId = id;
