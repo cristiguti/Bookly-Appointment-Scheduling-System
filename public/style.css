@@ -256,7 +256,13 @@ input:focus {
 /* ---------- Dashboard ---------- */
 .dashboard-greeting {
   font-size: 28px;
-  margin-bottom: 24px;
+}
+
+.dashboard-subtitle {
+  color: #33415599;
+  font-size: 15px;
+  margin-top: 4px;
+  margin-bottom: 8px;
 }
 
 .section-title {
@@ -269,15 +275,57 @@ input:focus {
   margin-top: 0;
 }
 
+.dashboard-hero-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
 .next-appt-card {
   background: #cfe1fa;
   border-radius: 16px;
-  padding: 24px 28px;
-  max-width: 640px;
+  padding: 28px 32px;
+}
+
+.next-appt-card.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.next-appt-empty-text {
+  color: #33415599;
+  font-size: 15px;
+}
+
+.next-appt-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.next-appt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #e1defb;
+  color: #4b4fe0;
+}
+
+.next-appt-icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 .next-appt-card .provider-name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
 }
 
@@ -285,66 +333,218 @@ input:focus {
   color: #33415599;
   font-size: 14px;
   margin-top: 2px;
+}
+
+.next-appt-datetime {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.next-appt-datetime span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.next-appt-datetime svg {
+  width: 16px;
+  height: 16px;
+  color: #4b4fe0;
+  flex-shrink: 0;
+}
+
+.next-appt-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #334155cc;
+  font-weight: 600;
   margin-bottom: 16px;
 }
 
-.next-appt-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 20px;
+.next-appt-location .pin-icon {
+  width: 16px;
+  height: 16px;
+  color: #3a2fd6;
+  flex-shrink: 0;
 }
 
 .next-appt-card .appt-actions {
-  margin-top: 4px;
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.empty-card {
-  background: #cfe1fa;
-  border-radius: 16px;
-  padding: 24px 28px;
-  max-width: 640px;
-  color: #33415599;
-}
-
-.quick-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  max-width: 640px;
-}
-
-.quick-tile {
-  background: #cfe1fa;
-  border-radius: 14px;
-  padding: 24px 20px;
+.quick-book-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
   text-decoration: none;
-  color: #1a1a2e;
+  box-sizing: border-box;
+}
+
+.quick-actions-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.quick-action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #cfe1fa;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: #1a1a2e;
+  font-weight: 600;
+  font-size: 14px;
   border: 2px solid transparent;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.quick-tile:hover {
+.quick-action-row:hover {
   border-color: #4b4fe0;
   background: #bcd6fb;
 }
 
-.quick-tile .label {
+.quick-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  color: #3a2fd6;
+}
+
+.quick-action-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dashboard-secondary-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 24px;
+}
+
+.dashboard-secondary-grid.no-reminder {
+  grid-template-columns: 1fr;
+}
+
+.care-hero {
+  background: #e3f5ea;
+  border: 1px solid #bfe8cf;
+  border-radius: 16px;
+  padding: 40px;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.care-hero-text {
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+}
+
+.care-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #b8f2d4;
+  color: #1a7f37;
+  margin-bottom: 16px;
+}
+
+.care-hero-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.care-hero h2 {
+  font-size: 21px;
   font-weight: 700;
-  font-size: 15px;
+}
+
+.care-hero p {
+  color: #1a1a2e99;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.care-hero-art {
+  flex-shrink: 0;
+}
+
+.care-hero-art img {
+  width: 100%;
+  max-width: 190px;
+  display: block;
 }
 
 .reminder-banner {
   max-width: 640px;
   background: #b8f2d4;
   border-radius: 14px;
-  padding: 18px 22px;
-  margin-top: 32px;
+  padding: 20px 24px;
+}
+
+#reminder-container .reminder-banner {
+  max-width: none;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+}
+
+.reminder-banner-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+}
+
+.reminder-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #9fe8bf;
+  color: #1a7f37;
+}
+
+.reminder-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.reminder-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .reminder-banner .reminder-title {
@@ -352,16 +552,39 @@ input:focus {
   margin-bottom: 4px;
 }
 
+.reminder-banner-inner .reminder-title {
+  color: #1a7f37;
+}
+
 .reminder-banner .reminder-body {
   font-size: 14px;
   color: #1a1a2ecc;
 }
 
+.reminder-divider {
+  border: none;
+  border-top: 1px solid #1a7f3733;
+  margin: 12px 0;
+}
+
 .reminder-banner .reminder-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   color: #1a7f37;
-  margin-top: 8px;
   font-weight: 600;
+  margin-top: 8px;
+}
+
+.reminder-banner-inner .reminder-note {
+  margin-top: 0;
+}
+
+.reminder-note .check-badge {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* ---------- Home / find a provider ---------- */
@@ -1388,5 +1611,20 @@ body.has-help-bar {
   }
   .confirm-modal-actions button {
     width: 100%;
+  }
+  .dashboard-hero-grid,
+  .dashboard-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+  .care-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .care-hero-text {
+    text-align: center;
+  }
+  .care-hero p {
+    margin-left: auto;
+    margin-right: auto;
   }
 }

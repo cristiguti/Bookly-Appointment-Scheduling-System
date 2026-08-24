@@ -8,7 +8,13 @@
    (provider_id, slot_date, slot_time) skip slots that already exist.
    ========================================================== */
 require("dotenv").config();
+const dns = require("dns");
 const mysql = require("mysql2/promise");
+
+// Some hosts fail outbound IPv6 with an instant connection drop against
+// dual-stack DB proxy domains (like Railway's) — force IPv4-first
+// resolution, same fix already applied in db.js for the running app.
+dns.setDefaultResultOrder("ipv4first");
 
 const DB_NAME = process.env.DB_NAME || "bookly";
 // 40-minute slots covering the clinic's full 8am-5pm day.

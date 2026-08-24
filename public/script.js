@@ -685,11 +685,14 @@ function initProvidersPage() {
     renderProviders(searchInput.value)
   );
 
-  // Initial load
+  // Initial load — a `?q=` param (from the dashboard's Find Care search
+  // or specialty pills) pre-fills and pre-filters the list.
   (async () => {
     try {
       providers = await api("/api/providers");
-      renderProviders();
+      const query = new URLSearchParams(window.location.search).get("q") || "";
+      if (query) searchInput.value = query;
+      renderProviders(query);
     } catch (err) {
       providerList.innerHTML = `<p class="muted">${err.message}</p>`;
     }
@@ -699,6 +702,21 @@ function initProvidersPage() {
   updateBookButton();
 }
 
+const LOCATION_PIN_SVG =
+  '<svg class="pin-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.5" stroke="currentColor" stroke-width="2"/></svg>';
+
+const CALENDAR_ICON_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3" stroke="currentColor" stroke-width="2"/><path d="M3 9h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+const CLOCK_ICON_SVG =
+  '<svg class="clock-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+const BELL_ICON_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a5 5 0 0 0-5 5v3.5c0 .8-.3 1.6-.9 2.2L5 15h14l-1.1-1.3c-.6-.6-.9-1.4-.9-2.2V8a5 5 0 0 0-5-5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 18a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+const CHECK_BADGE_SVG =
+  '<svg class="check-badge" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor"/><path d="M7.5 12.5l3 3 6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+
 /* ---------- DASHBOARD PAGE ---------- */
 function initDashboardPage() {
   const greetingEl = document.getElementById("dashboard-greeting");
@@ -706,6 +724,13 @@ function initDashboardPage() {
 
   const nextApptContainer = document.getElementById("next-appt-container");
   const reminderContainer = document.getElementById("reminder-container");
+  const secondaryGrid = document.querySelector(".dashboard-secondary-grid");
+
+  // With no reminder banner, let the care-hero panel fill the row instead
+  // of floating alone next to empty space.
+  function setSecondaryGridHasReminder(hasReminder) {
+    if (secondaryGrid) secondaryGrid.classList.toggle("no-reminder", !hasReminder);
+  }
 
   loadCurrentUser()
     .then((user) => {
@@ -716,55 +741,147 @@ function initDashboardPage() {
     })
     .catch(() => {});
 
-  api("/api/appointments")
-    .then((appointments) => {
-      const upcoming = appointments.filter((a) => !a.isPast);
+  function renderNextAppointment(appointments) {
+    const upcoming = appointments.filter((a) => !a.isPast);
 
-      if (upcoming.length === 0) {
-        nextApptContainer.innerHTML = `
-          <div class="empty-card">
-            You have no upcoming appointments.
-            <a href="/providers.html">Schedule one now</a>.
-          </div>
-        `;
-        reminderContainer.innerHTML = "";
-        return;
-      }
-
-      const next = upcoming[0];
+    if (upcoming.length === 0) {
       nextApptContainer.innerHTML = `
-        <div class="next-appt-card">
-          <div class="provider-name">${next.providerName}</div>
-          <div class="provider-specialty">${next.providerSpecialty}</div>
-          <div class="next-appt-meta">
-            <span>${next.dayLabel}</span>
-            <span>${next.timeLabel}</span>
-            <span>${next.location || ""}</span>
-          </div>
-          ${next.reason ? `<div class="reason">Reason: ${escapeHtml(next.reason)}</div>` : ""}
-          <div class="appt-actions">
-            <a class="btn-outline" href="/Appointments.html">View Details</a>
-            <a class="btn-outline" href="/providers.html">Reschedule</a>
-          </div>
+        <div class="next-appt-card empty">
+          <p class="next-appt-empty-text">No upcoming appointments</p>
+          <a class="btn-primary" href="/providers.html">Schedule an Appointment</a>
         </div>
       `;
+      reminderContainer.innerHTML = "";
+      setSecondaryGridHasReminder(false);
+      return;
+    }
 
-      const remindersOn = localStorage.getItem("notif-reminders") !== "off";
-      reminderContainer.innerHTML = remindersOn
-        ? `
-          <div class="reminder-banner">
-            <div class="reminder-title">Appointment Reminder</div>
-            <div class="reminder-body">
-              Your appointment with ${next.providerName} is on ${next.dayLabel} at ${next.timeLabel}.
-            </div>
-            <div class="reminder-note">Email reminder enabled</div>
+    const next = upcoming[0];
+    nextApptContainer.innerHTML = `
+      <div class="next-appt-card">
+        <div class="next-appt-top">
+          <span class="next-appt-icon" aria-hidden="true">${CALENDAR_ICON_SVG}</span>
+          <div>
+            <div class="provider-name">${escapeHtml(next.providerName)}</div>
+            <div class="provider-specialty">${escapeHtml(next.providerSpecialty)}</div>
           </div>
-        `
-        : "";
-    })
-    .catch((err) => {
-      nextApptContainer.innerHTML = `<p class="muted">${err.message}</p>`;
+        </div>
+        <div class="next-appt-datetime">
+          <span>${CALENDAR_ICON_SVG} ${next.dayLabel}</span>
+          <span>${CLOCK_ICON_SVG} ${next.timeLabel}</span>
+        </div>
+        ${next.location ? `<div class="next-appt-location">${LOCATION_PIN_SVG} ${escapeHtml(next.location)}</div>` : ""}
+        ${next.reason ? `<div class="reason">Reason: ${escapeHtml(next.reason)}</div>` : ""}
+        <div class="appt-actions">
+          <a class="btn-outline" href="/Appointments.html">View Details</a>
+          <a class="btn-outline" href="/providers.html">Reschedule</a>
+          <button type="button" class="btn-outline" id="dashboard-cancel-btn">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("dashboard-cancel-btn").addEventListener("click", () => {
+      confirmCancelAppointment(next, load);
     });
+
+    const remindersOn = localStorage.getItem("notif-reminders") !== "off";
+    setSecondaryGridHasReminder(remindersOn);
+    reminderContainer.innerHTML = remindersOn
+      ? `
+        <div class="reminder-banner">
+          <div class="reminder-banner-inner">
+            <span class="reminder-icon" aria-hidden="true">${BELL_ICON_SVG}</span>
+            <div class="reminder-content">
+              <div class="reminder-title">Appointment Reminder</div>
+              <div class="reminder-body">
+                Your appointment with ${escapeHtml(next.providerName)} is on <strong>${next.dayLabel} at ${next.timeLabel}</strong>.
+              </div>
+              <hr class="reminder-divider" />
+              <div class="reminder-note">${CHECK_BADGE_SVG} Email reminder enabled</div>
+            </div>
+          </div>
+        </div>
+      `
+      : "";
+  }
+
+  function load() {
+    api("/api/appointments")
+      .then((appointments) => {
+        renderNextAppointment(appointments);
+      })
+      .catch((err) => {
+        nextApptContainer.innerHTML = `<p class="muted">${err.message}</p>`;
+      });
+  }
+
+  load();
+}
+
+/* ---------- CANCEL APPOINTMENT CONFIRMATION (shared: dashboard + appointments page) ---------- */
+let pendingCancelAppt = null;
+let pendingCancelCallback = null;
+
+function initCancelModal() {
+  if (document.getElementById("cancel-modal-overlay")) return;
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `
+    <div class="confirm-modal-overlay" id="cancel-modal-overlay">
+      <div class="confirm-modal">
+        <h3>Cancel appointment?</h3>
+        <p class="confirm-modal-desc" id="cancel-modal-message"></p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-outline" id="cancel-modal-keep">Keep Appointment</button>
+          <button type="button" class="btn-danger" id="cancel-modal-confirm">Yes, Cancel Appointment</button>
+        </div>
+      </div>
+    </div>
+    `
+  );
+
+  const overlay = document.getElementById("cancel-modal-overlay");
+  const keepBtn = document.getElementById("cancel-modal-keep");
+  const confirmBtn = document.getElementById("cancel-modal-confirm");
+
+  function closeCancelModal() {
+    pendingCancelAppt = null;
+    pendingCancelCallback = null;
+    overlay.classList.remove("open");
+  }
+
+  keepBtn.addEventListener("click", closeCancelModal);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeCancelModal();
+  });
+
+  confirmBtn.addEventListener("click", async () => {
+    if (!pendingCancelAppt) return;
+    const appt = pendingCancelAppt;
+    const callback = pendingCancelCallback;
+    closeCancelModal();
+    try {
+      await api(`/api/appointments/${appt.id}/cancel`, { method: "POST" });
+      if (callback) callback();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
+// Opens the shared cancel-confirmation modal for `appt`
+// ({id, providerName, dayLabel, timeLabel, ...}); calls `onCancelled`
+// after the cancellation succeeds.
+function confirmCancelAppointment(appt, onCancelled) {
+  const overlay = document.getElementById("cancel-modal-overlay");
+  const message = document.getElementById("cancel-modal-message");
+  if (!overlay || !message) return;
+  pendingCancelAppt = appt;
+  pendingCancelCallback = onCancelled;
+  message.textContent =
+    `Are you sure you want to cancel your appointment with ${appt.providerName} on ${appt.dayLabel} at ${appt.timeLabel}?`;
+  overlay.classList.add("open");
 }
 
 /* ---------- MY APPOINTMENTS PAGE ---------- */
@@ -773,41 +890,7 @@ function initAppointmentsPage() {
   const pastEl = document.getElementById("appt-list-past");
   if (!upcomingEl || !pastEl) return;
 
-  const cancelModalOverlay = document.getElementById("cancel-modal-overlay");
-  const cancelModalMessage = document.getElementById("cancel-modal-message");
-  const cancelModalKeepBtn = document.getElementById("cancel-modal-keep");
-  const cancelModalConfirmBtn = document.getElementById("cancel-modal-confirm");
   let upcomingAppointments = [];
-  let pendingCancelId = null;
-
-  function openCancelModal(appt) {
-    pendingCancelId = appt.id;
-    cancelModalMessage.textContent =
-      `Are you sure you want to cancel your appointment with ${appt.providerName} on ${appt.dayLabel} at ${appt.timeLabel}?`;
-    cancelModalOverlay.classList.add("open");
-  }
-
-  function closeCancelModal() {
-    pendingCancelId = null;
-    cancelModalOverlay.classList.remove("open");
-  }
-
-  cancelModalKeepBtn.addEventListener("click", closeCancelModal);
-  cancelModalOverlay.addEventListener("click", (e) => {
-    if (e.target === cancelModalOverlay) closeCancelModal();
-  });
-
-  cancelModalConfirmBtn.addEventListener("click", async () => {
-    if (pendingCancelId == null) return;
-    const id = pendingCancelId;
-    closeCancelModal();
-    try {
-      await api(`/api/appointments/${id}/cancel`, { method: "POST" });
-      load(); // refresh the lists
-    } catch (err) {
-      alert(err.message);
-    }
-  });
 
   function renderUpcoming(appointments) {
     upcomingEl.innerHTML = "";
@@ -880,7 +963,7 @@ function initAppointmentsPage() {
 
     if (action === "cancel") {
       const appt = upcomingAppointments.find((a) => a.id === id);
-      if (appt) openCancelModal(appt);
+      if (appt) confirmCancelAppointment(appt, load);
     }
 
     if (action === "reschedule") {
@@ -925,6 +1008,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initLogout();
   initProfileMenu();
   initHelpBar();
+  initCancelModal();
   initLoginPage();
   initRegisterPage();
   initForgotPasswordPage();
