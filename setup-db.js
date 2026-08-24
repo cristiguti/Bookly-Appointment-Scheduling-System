@@ -9,8 +9,14 @@
    ========================
    ================================== */
 require("dotenv").config();
+const dns = require("dns");
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
+
+// Some hosts fail outbound IPv6 with an instant connection drop against
+// dual-stack DB proxy domains (like Railway's) — force IPv4-first
+// resolution, same fix already applied in db.js for the running app.
+dns.setDefaultResultOrder("ipv4first");
 
 const DB_NAME = process.env.DB_NAME || "bookly";
 

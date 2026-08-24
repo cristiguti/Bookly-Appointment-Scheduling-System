@@ -636,12 +636,13 @@ function initProvidersPage() {
 
     if (!selectedProviderId) {
       timesHeading.textContent = "Available Times";
+      timesGrid.innerHTML = `<p class="muted">Select a provider to view available appointment times.</p>`;
       return;
     }
     const daySlots = slots.filter((s) => s.dateValue === selectedDate);
     if (daySlots.length === 0) {
       timesHeading.textContent = "Available Times";
-      timesGrid.innerHTML = `<p class="muted">No open times for this provider.</p>`;
+      timesGrid.innerHTML = `<p class="muted">No appointment times are currently available for this provider. Please select another provider or check again later.</p>`;
       return;
     }
 
@@ -662,14 +663,8 @@ function initProvidersPage() {
   }
 
   function updateBookButton() {
-    bookBtn.disabled = !(
-      selectedProviderId &&
-      selectedSlotId &&
-      reasonInput.value.trim()
-    );
+    bookBtn.disabled = !(selectedProviderId && selectedSlotId);
   }
-
-  reasonInput.addEventListener("input", updateBookButton);
 
   bookBtn.addEventListener("click", async () => {
     if (bookBtn.disabled) return;
@@ -778,6 +773,42 @@ function initAppointmentsPage() {
   const pastEl = document.getElementById("appt-list-past");
   if (!upcomingEl || !pastEl) return;
 
+  const cancelModalOverlay = document.getElementById("cancel-modal-overlay");
+  const cancelModalMessage = document.getElementById("cancel-modal-message");
+  const cancelModalKeepBtn = document.getElementById("cancel-modal-keep");
+  const cancelModalConfirmBtn = document.getElementById("cancel-modal-confirm");
+  let upcomingAppointments = [];
+  let pendingCancelId = null;
+
+  function openCancelModal(appt) {
+    pendingCancelId = appt.id;
+    cancelModalMessage.textContent =
+      `Are you sure you want to cancel your appointment with ${appt.providerName} on ${appt.dayLabel} at ${appt.timeLabel}?`;
+    cancelModalOverlay.classList.add("open");
+  }
+
+  function closeCancelModal() {
+    pendingCancelId = null;
+    cancelModalOverlay.classList.remove("open");
+  }
+
+  cancelModalKeepBtn.addEventListener("click", closeCancelModal);
+  cancelModalOverlay.addEventListener("click", (e) => {
+    if (e.target === cancelModalOverlay) closeCancelModal();
+  });
+
+  cancelModalConfirmBtn.addEventListener("click", async () => {
+    if (pendingCancelId == null) return;
+    const id = pendingCancelId;
+    closeCancelModal();
+    try {
+      await api(`/api/appointments/${id}/cancel`, { method: "POST" });
+      load(); // refresh the lists
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
   function renderUpcoming(appointments) {
     upcomingEl.innerHTML = "";
     if (appointments.length === 0) {
@@ -831,6 +862,7 @@ function initAppointmentsPage() {
       const appointments = await api("/api/appointments");
       const upcoming = appointments.filter((a) => !a.isPast);
       const past = appointments.filter((a) => a.isPast).reverse();
+      upcomingAppointments = upcoming;
       renderUpcoming(upcoming);
       renderPast(past);
     } catch (err) {
@@ -839,7 +871,7 @@ function initAppointmentsPage() {
     }
   }
 
-  upcomingEl.addEventListener("click", async (e) => {
+  upcomingEl.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-action]");
     if (!btn) return;
 
@@ -847,12 +879,8 @@ function initAppointmentsPage() {
     const action = btn.dataset.action;
 
     if (action === "cancel") {
-      try {
-        await api(`/api/appointments/${id}/cancel`, { method: "POST" });
-        load(); // refresh the lists
-      } catch (err) {
-        alert(err.message);
-      }
+      const appt = upcomingAppointments.find((a) => a.id === id);
+      if (appt) openCancelModal(appt);
     }
 
     if (action === "reschedule") {

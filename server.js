@@ -401,9 +401,6 @@ app.post("/api/appointments", requireAuthApi, async (req, res) => {
   const { slotId, reason } = req.body || {};
   if (!slotId) return res.status(400).json({ error: "A time slot is required." });
   const cleanReason = String(reason || "").trim().slice(0, 500);
-  if (!cleanReason) {
-    return res.status(400).json({ error: "Please tell us the reason for your visit." });
-  }
   try {
     const [slots] = await pool.query(
       "SELECT id, is_booked FROM availability_slots WHERE id = ?",
