@@ -336,6 +336,10 @@ app.get("/api/providers/:id", requireAuthApi, async (req, res) => {
 app.get("/api/providers/:id/availability", requireAuthApi, async (req, res) => {
   const providerId = Number(req.params.id);
   if (!providerId) return res.status(400).json({ error: "Invalid provider." });
+  // When rescheduling, the appointment being moved shouldn't count against
+  // the "already have one this day" filter below — otherwise the patient
+  // could never pick a different time on that same day.
+  const excludeAppointmentId = Number(req.query.excludeAppointmentId) || 0;
   try {
     // Return only slots that are not already booked, and skip any date
     // where this patient already holds a confirmed appointment with this
@@ -357,9 +361,10 @@ app.get("/api/providers/:id/availability", requireAuthApi, async (req, res) => {
              WHERE a.patient_id = ?
                AND a.status = 'confirmed'
                AND s2.provider_id = ?
+               AND a.id <> ?
           )
         ORDER BY s.slot_date, s.slot_time`,
-      [providerId, req.session.userId, providerId]
+      [providerId, req.session.userId, providerId, excludeAppointmentId]
     );
     res.json(rows);
   } catch (err) {
@@ -491,6 +496,119 @@ app.post("/api/appointments", requireAuthApi, async (req, res) => {
     }
   } catch (err) {
     console.error("book appointment error:", err);
+    res.status(500).json({ error: "Server error." });
+  }
+});
+
+// Moves an existing appointment to a new slot in place, instead of
+// leaving the old appointment untouched and creating a second one.
+app.post("/api/appointments/:id/reschedule", requireAuthApi, async (req, res) => {
+  const id = Number(req.params.id);
+  const { slotId, reason } = req.body || {};
+  if (!slotId) return res.status(400).json({ error: "A time slot is required." });
+  const cleanReason = String(reason || "").trim().slice(0, 500);
+  try {
+    const [existing] = await pool.query(
+      "SELECT slot_id FROM appointments WHERE id = ? AND patient_id = ? AND status = 'confirmed'",
+      [id, req.session.userId]
+    );
+    if (!existing.length) {
+      return res.status(404).json({ error: "That appointment could not be found." });
+    }
+    const oldSlotId = existing[0].slot_id;
+    const newSlotId = Number(slotId);
+
+    const [slots] = await pool.query(
+      "SELECT id, is_booked FROM availability_slots WHERE id = ?",
+      [newSlotId]
+    );
+    if (!slots.length) {
+      return res.status(404).json({ error: "That time slot no longer exists." });
+    }
+    if (slots[0].is_booked && newSlotId !== oldSlotId) {
+      return res
+        .status(409)
+        .json({ error: "That time was just booked. Please pick another." });
+    }
+
+    const [conflicts] = await pool.query(
+      `SELECT a.id
+         FROM appointments a
+         JOIN availability_slots s ON s.id = a.slot_id
+         JOIN availability_slots target ON target.id = ?
+        WHERE a.patient_id = ?
+          AND a.status = 'confirmed'
+          AND a.id <> ?
+          AND s.slot_date = target.slot_date
+          AND s.slot_time = target.slot_time`,
+      [newSlotId, req.session.userId, id]
+    );
+    if (conflicts.length) {
+      return res.status(409).json({
+        error: "You already have an appointment at that date and time.",
+      });
+    }
+
+    const [sameProviderSameDay] = await pool.query(
+      `SELECT a.id
+         FROM appointments a
+         JOIN availability_slots s ON s.id = a.slot_id
+         JOIN availability_slots target ON target.id = ?
+        WHERE a.patient_id = ?
+          AND a.status = 'confirmed'
+          AND a.id <> ?
+          AND s.provider_id = target.provider_id
+          AND s.slot_date = target.slot_date`,
+      [newSlotId, req.session.userId, id]
+    );
+    if (sameProviderSameDay.length) {
+      return res.status(409).json({
+        error: "You already have an appointment with this provider on that day.",
+      });
+    }
+
+    await pool.query(
+      "UPDATE appointments SET slot_id = ?, reason = ? WHERE id = ? AND patient_id = ?",
+      [newSlotId, cleanReason, id, req.session.userId]
+    );
+    if (newSlotId !== oldSlotId) {
+      await pool.query(
+        "UPDATE availability_slots SET is_booked = FALSE WHERE id = ?",
+        [oldSlotId]
+      );
+      await pool.query(
+        "UPDATE availability_slots SET is_booked = TRUE WHERE id = ?",
+        [newSlotId]
+      );
+    }
+    res.json({ ok: true });
+
+    try {
+      const [[details]] = await pool.query(
+        `SELECT p.name AS providerName, p.location AS location,
+                pt.name AS patientName, pt.email AS patientEmail,
+                DATE_FORMAT(s.slot_date, '%a %b %e') AS dayLabel,
+                DATE_FORMAT(s.slot_time, '%h:%i %p') AS timeLabel
+           FROM availability_slots s
+           JOIN healthcare_providers p ON p.id = s.provider_id
+           JOIN patients pt ON pt.id = ?
+          WHERE s.id = ?`,
+        [req.session.userId, newSlotId]
+      );
+      await sendAppointmentConfirmation({
+        to: details.patientEmail,
+        patientName: details.patientName,
+        providerName: details.providerName,
+        dayLabel: details.dayLabel,
+        timeLabel: details.timeLabel,
+        location: details.location,
+        reason: cleanReason,
+      });
+    } catch (mailErr) {
+      console.error("reschedule confirmation email failed:", mailErr.message);
+    }
+  } catch (err) {
+    console.error("reschedule appointment error:", err);
     res.status(500).json({ error: "Server error." });
   }
 });

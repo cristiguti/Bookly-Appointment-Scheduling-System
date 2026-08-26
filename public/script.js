@@ -374,6 +374,9 @@ function initProvidersPage() {
   const bookingPanel = document.getElementById("booking-panel");
   let detailProviderId = null;
 
+  const rescheduleId = new URLSearchParams(window.location.search).get("rescheduleId");
+  if (rescheduleId) bookBtn.textContent = "Confirm Reschedule";
+
   let providers = []; // loaded from API
   let slots = []; // availability for the selected provider (all dates)
   let selectedProviderId = null;
@@ -604,7 +607,8 @@ function initProvidersPage() {
     closeDatePanel();
     datePicker.classList.add("hidden");
     try {
-      slots = await api(`/api/providers/${id}/availability`);
+      const query = rescheduleId ? `?excludeAppointmentId=${rescheduleId}` : "";
+      slots = await api(`/api/providers/${id}/availability${query}`);
       populateDates();
       renderTimes();
     } catch (err) {
@@ -670,7 +674,10 @@ function initProvidersPage() {
     if (bookBtn.disabled) return;
     bookBtn.disabled = true;
     try {
-      await api("/api/appointments", {
+      const endpoint = rescheduleId
+        ? `/api/appointments/${rescheduleId}/reschedule`
+        : "/api/appointments";
+      await api(endpoint, {
         method: "POST",
         body: { slotId: selectedSlotId, reason: reasonInput.value.trim() },
       });
@@ -774,7 +781,7 @@ function initDashboardPage() {
         ${next.reason ? `<div class="reason">Reason: ${escapeHtml(next.reason)}</div>` : ""}
         <div class="appt-actions">
           <a class="btn-outline" href="/Appointments.html">View Details</a>
-          <a class="btn-outline" href="/providers.html">Reschedule</a>
+          <a class="btn-outline" href="/providers.html?rescheduleId=${next.id}">Reschedule</a>
           <button type="button" class="btn-outline" id="dashboard-cancel-btn">Cancel</button>
         </div>
       </div>
@@ -967,8 +974,9 @@ function initAppointmentsPage() {
     }
 
     if (action === "reschedule") {
-      // Simple flow: go back to the finder to book a new time.
-      window.location.href = "/providers.html";
+      // Carry the appointment id so the finder replaces this booking
+      // in place instead of creating a second one.
+      window.location.href = `/providers.html?rescheduleId=${id}`;
     }
   });
 
